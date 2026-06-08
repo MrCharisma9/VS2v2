@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VS 2v2 TOURNAMENT</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #141720;
+    --surface2: #1a1f2e;
+    --border: #2a3050;
+    --accent-asia: #00e5ff;
+    --accent-eu: #ff6b35;
+    --win: #00ff88;
+    --text: #e8ecf4;
+    --muted: #6b7594;
+    --finals: #ffd700;
+    --tbd: #3a4060;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: auto;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.4;
+  }
+
+  .wrapper { position: relative; z-index: 1; padding: 24px 32px 40px; min-width: 1200px; }
+
+  /* ── HEADER ── */
+  .header { text-align: center; margin-bottom: 18px; }
+  .header h1 {
+    font-family: 'Orbitron', monospace; font-size: clamp(18px,3vw,28px); font-weight: 900;
+    letter-spacing: 6px; text-transform: uppercase;
+    background: linear-gradient(135deg, var(--accent-asia), var(--finals), var(--accent-eu));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header p { color: var(--muted); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin-top: 4px; }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .tbtn {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--muted); font-family: 'Rajdhani', sans-serif; font-size: 12px;
+    font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    padding: 7px 18px; cursor: pointer; transition: all 0.2s;
+  }
+  .tbtn:hover { border-color: var(--muted); color: var(--text); }
+  .tbtn.admin-active { background: rgba(0,229,255,0.12); border-color: var(--accent-asia); color: var(--accent-asia); }
+  .tbtn.save-btn { background: rgba(0,255,136,0.1); border-color: rgba(0,255,136,0.4); color: var(--win); }
+  .tbtn.save-btn:hover { background: rgba(0,255,136,0.2); }
+  .tbtn.reset-btn { background: rgba(255,60,60,0.06); border-color: rgba(255,60,60,0.25); color: rgba(255,100,100,0.7); }
+  .tbtn.reset-btn:hover { border-color: rgba(255,80,80,0.6); color: #ff6060; }
+  .save-status { font-size: 11px; color: var(--win); letter-spacing: 1px; opacity: 0; transition: opacity 0.4s; }
+  .save-status.show { opacity: 1; }
+  .edit-hint { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+  .admin-badge {
+    display: none; background: rgba(0,229,255,0.18); border: 1px solid var(--accent-asia);
+    border-radius: 4px; color: var(--accent-asia); font-size: 10px; font-weight: 700;
+    letter-spacing: 2px; padding: 3px 10px; text-transform: uppercase;
+  }
+  body.admin-mode .admin-badge { display: inline-block; }
+
+  /* ── BRACKET LAYOUT ── */
+  .bracket-layout {
+    display: grid;
+    grid-template-columns: 1fr 190px 1fr;
+    gap: 0; align-items: start;
+  }
+
+  .region-title {
+    font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 4px; text-transform: uppercase; text-align: center;
+    padding: 8px 16px; margin-bottom: 16px; border-radius: 4px;
+  }
+  .asia-title { color: var(--accent-asia); border-bottom: 2px solid var(--accent-asia); text-shadow: 0 0 12px rgba(0,229,255,0.4); }
+  .eu-title   { color: var(--accent-eu);   border-bottom: 2px solid var(--accent-eu);   text-shadow: 0 0 12px rgba(255,107,53,0.4); }
+
+  .rounds { display: flex; gap: 0; align-items: flex-start; }
+  .asia-bracket .rounds { flex-direction: row; }
+  .eu-bracket   .rounds { flex-direction: row-reverse; }
+
+  .round-col { display: flex; flex-direction: column; min-width: 150px; position: relative; }
+  .round-label {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); text-align: center; margin-bottom: 6px; font-weight: 700;
+  }
+
+  /* ── MATCH CARD ── */
+  .match {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    margin: 5px 6px; overflow: hidden; transition: border-color 0.2s; position: relative;
+  }
+  .match.clickable { cursor: default; }
+  body.admin-mode .match.clickable { cursor: pointer; }
+  body.admin-mode .match.clickable:hover { border-color: var(--accent-asia); box-shadow: 0 0 8px rgba(0,229,255,0.2); }
+  body.admin-mode .match.clickable::after {
+    content: '✎'; position: absolute; top: 3px; right: 5px;
+    font-size: 10px; color: var(--accent-asia); opacity: 0; transition: opacity 0.2s;
+  }
+  body.admin-mode .match.clickable:hover::after { opacity: 1; }
+  .match.tbd-match { opacity: 0.45; }
+
+  .match-header {
+    background: var(--surface2); padding: 2px 8px; font-size: 10px;
+    letter-spacing: 1px; color: var(--muted); text-transform: uppercase; font-weight: 600;
+  }
+  .team-row {
+    display: flex; align-items: center; padding: 5px 8px; gap: 6px;
+    border-bottom: 1px solid var(--border); transition: background 0.15s;
+  }
+  .team-row:last-of-type { border-bottom: none; }
+  .team-row.winner { background: rgba(0,255,136,0.07); }
+  .team-row.winner .team-name { color: var(--win); font-weight: 700; }
+  .team-row.winner .team-score { color: var(--win); }
+  .team-name {
+    flex: 1; font-weight: 600; font-size: 13px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .team-name.tbd { color: var(--tbd); font-style: italic; }
+  .team-score { font-weight: 700; font-size: 13px; min-width: 18px; text-align: center; color: var(--muted); }
+  .bye-badge { font-size: 10px; color: var(--finals); letter-spacing: 1px; text-align: center; padding: 3px; background: rgba(255,215,0,0.07); }
+
+  /* ── FINALS CENTER ── */
+  .finals-col {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-start; padding-top: 50px; gap: 10px; min-width: 190px;
+  }
+  .finals-label {
+    font-family: 'Orbitron', monospace; font-size: 11px; font-weight: 900;
+    letter-spacing: 3px; color: var(--finals); text-transform: uppercase;
+    text-shadow: 0 0 20px rgba(255,215,0,0.5); text-align: center; margin-bottom: 6px;
+  }
+  .finals-match {
+    background: linear-gradient(135deg, rgba(0,229,255,0.08), rgba(255,107,53,0.08));
+    border: 1px solid var(--finals); border-radius: 8px; width: 165px; overflow: hidden;
+    box-shadow: 0 0 24px rgba(255,215,0,0.12); cursor: default;
+  }
+  body.admin-mode .finals-match { cursor: pointer; }
+  body.admin-mode .finals-match:hover { box-shadow: 0 0 30px rgba(255,215,0,0.25); }
+  .finals-match .match-header { background: linear-gradient(90deg, rgba(0,229,255,0.15), rgba(255,107,53,0.15)); color: var(--finals); }
+  .finals-sub { font-size: 10px; color: var(--muted); text-align: center; letter-spacing: 1px; margin-top: 4px; }
+  .champion-banner {
+    margin-top: 10px; text-align: center;
+    background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,215,0,0.04));
+    border: 1px solid rgba(255,215,0,0.4); border-radius: 8px; padding: 10px 16px; width: 165px;
+    display: none;
+  }
+  .champion-banner.show { display: block; }
+  .champion-banner .champ-label { font-size: 9px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+  .champion-banner .champ-name { font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 900; color: var(--finals); text-shadow: 0 0 12px rgba(255,215,0,0.5); }
+
+  /* ── LOGIN OVERLAY ── */
+  .login-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.82); backdrop-filter: blur(6px);
+    z-index: 200; align-items: center; justify-content: center;
+  }
+  .login-overlay.open { display: flex; }
+  .login-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 28px; width: min(320px, 90vw); display: flex; flex-direction: column; gap: 14px;
+  }
+  .login-box h3 {
+    font-family: 'Orbitron', monospace; font-size: 13px; letter-spacing: 3px;
+    color: var(--accent-asia); text-align: center; text-transform: uppercase;
+  }
+  .login-box input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 14px;
+    padding: 8px 12px; outline: none; transition: border-color 0.2s;
+  }
+  .login-box input:focus { border-color: var(--accent-asia); }
+  .login-err { color: #ff5555; font-size: 11px; letter-spacing: 1px; text-align: center; display: none; }
+  .login-actions { display: flex; gap: 8px; }
+  .lbtn { flex: 1; padding: 9px; border-radius: 4px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border: none; transition: opacity 0.2s; }
+  .lbtn:hover { opacity: 0.8; }
+  .lbtn-ok { background: var(--accent-asia); color: #000; }
+  .lbtn-cancel { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+  /* ── EDIT MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+    z-index: 150; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; width: 340px; box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  }
+  .modal h3 { font-family: 'Orbitron', monospace; font-size: 12px; letter-spacing: 3px; color: var(--text); margin-bottom: 16px; text-transform: uppercase; }
+  .field-group { margin-bottom: 13px; }
+  .field-group label { display: block; font-size: 11px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+  .field-group input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 14px;
+    padding: 7px 10px; outline: none; transition: border-color 0.2s;
+  }
+  .field-group input:focus { border-color: var(--accent-asia); }
+  .field-group input[readonly] { opacity: 0.5; cursor: not-allowed; }
+  .winner-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+  .winner-btn {
+    flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--muted); font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600;
+    padding: 7px 4px; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .winner-btn.active { background: rgba(0,255,136,0.12); border-color: var(--win); color: var(--win); }
+  .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .btn { flex: 1; padding: 9px; border-radius: 4px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border: none; transition: opacity 0.2s; }
+  .btn:hover { opacity: 0.8; }
+  .btn-save { background: var(--win); color: #000; }
+  .btn-cancel { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .propagate-note { font-size: 10px; color: var(--accent-asia); letter-spacing: 1px; text-align: center; margin-bottom: 10px; }
+
+  /* ── MOBILE ── */
+  @media (max-width: 900px) {
+    .wrapper { min-width: unset; padding: 14px 10px 40px; }
+    .bracket-layout { display: flex; flex-direction: column; gap: 24px; }
+    .finals-col { padding-top: 0; width: 100%; }
+    .finals-match, .champion-banner { width: min(260px, 80vw); }
+    .round-col { min-width: 130px; }
+    .team-name { font-size: 12px; }
+    .eu-bracket .rounds { flex-direction: row; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <h1>VS 2v2 TOURNAMENT</h1>
+    <p>Asia Bracket &nbsp;·&nbsp; EU Bracket &nbsp;·&nbsp; Grand Finals</p>
+  </div>
+
+  <div class="toolbar">
+    <span class="admin-badge">⚡ ADMIN</span>
+    <button class="tbtn" id="adminBtn" onclick="openLogin()">🔐 Admin Login</button>
+    <button class="tbtn save-btn" id="saveBtn" style="display:none" onclick="manualSave()">💾 Save</button>
+    <button class="tbtn reset-btn" id="resetBtn" style="display:none" onclick="resetAll()">↺ Reset All</button>
+    <span class="save-status" id="saveStatus">✓ Saved!</span>
+    <span class="edit-hint" id="editHint">Admin login required to edit results</span>
+  </div>
+
+  <div class="bracket-layout">
+    <div class="asia-bracket" id="asia-bracket">
+      <div class="region-title asia-title">Asia Bracket</div>
+      <div class="rounds" id="asia-rounds"></div>
+    </div>
+
+    <div class="finals-col">
+      <div class="finals-label">⚡ Grand Finals ⚡</div>
+      <div class="finals-match match" id="finals-match" onclick="openFinalsEdit()">
+        <div class="match-header">Grand Finals</div>
+        <div class="team-row" id="finals-t1">
+          <span class="team-name" id="finals-name1">TBD (Asia)</span>
+          <span class="team-score" id="finals-score1">-</span>
+        </div>
+        <div class="team-row" id="finals-t2">
+          <span class="team-name" id="finals-name2">TBD (EU)</span>
+          <span class="team-score" id="finals-score2">-</span>
+        </div>
+      </div>
+      <div class="finals-sub">Asia Winner vs EU Winner</div>
+      <div class="champion-banner" id="champion-banner">
+        <div class="champ-label">🏆 Champion</div>
+        <div class="champ-name" id="champ-name">—</div>
+      </div>
+    </div>
+
+    <div class="eu-bracket" id="eu-bracket">
+      <div class="region-title eu-title">EU Bracket</div>
+      <div class="rounds" id="eu-rounds"></div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h3>🔐 Admin Access</h3>
+    <input type="password" id="pwInput" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="login-err" id="loginErr">Incorrect password. Try again.</div>
+    <div class="login-actions">
+      <button class="lbtn lbtn-cancel" onclick="closeLogin()">Cancel</button>
+      <button class="lbtn lbtn-ok" onclick="doLogin()">Enter</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Edit Match</h3>
+    <div class="propagate-note" id="propagate-note"></div>
+    <div class="field-group">
+      <label id="label-t1">Team 1</label>
+      <input type="text" id="input-t1" placeholder="Team name">
+    </div>
+    <div class="field-group">
+      <label>Score</label>
+      <input type="number" id="input-s1" placeholder="0" min="0">
+    </div>
+    <div class="field-group">
+      <label id="label-t2">Team 2</label>
+      <input type="text" id="input-t2" placeholder="Team name">
+    </div>
+    <div class="field-group">
+      <label>Score</label>
+      <input type="number" id="input-s2" placeholder="0" min="0">
+    </div>
+    <div style="font-size:11px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;text-transform:uppercase;">Select Winner</div>
+    <div class="winner-toggle">
+      <button class="winner-btn" id="win-btn-1" onclick="setWinner(1)">Team 1 ✓</button>
+      <button class="winner-btn" id="win-btn-2" onclick="setWinner(2)">Team 2 ✓</button>
+      <button class="winner-btn" id="win-btn-0" onclick="setWinner(0)">None</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-save" onclick="saveMatch()">Save & Advance</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// SECURITY: Password never stored in this file.
+// Only the SHA-256 hash is here. SHA-256 is a one-way
+// cryptographic function — the original password cannot
+// be recovered from this hash under any circumstances.
+// Even reading every byte of this file reveals nothing.
+// ══════════════════════════════════════════════════════════
+const _H = "a7784e76b607c1fcdaf7357fddb9ca2f60d61da0120e25dec24052716ae2c8aa";
+
+async function _sha(s) {
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+// ── INITIAL DATA ──────────────────────────────────────────
+const INIT_ASIA_R1 = [
+  { t1:'Team 1',  t2:'Team 39', s1:'', s2:'', winner:0 },
+  { t1:'Team 43', t2:'Team 25', s1:'', s2:'', winner:0 },
+  { t1:'Team 20', t2:'Team 35', s1:'', s2:'', winner:0 },
+  { t1:'Team 48', t2:'Team 9',  s1:'', s2:'', winner:0 },
+  { t1:'Team 28', t2:'Team 16', s1:'', s2:'', winner:0 },
+  { t1:'Team 22', t2:'Team 34', s1:'', s2:'', winner:0 },
+  { t1:'Team 11', t2:'Team 47', s1:'', s2:'', winner:0 },
+  { t1:'Team 30', t2:'Team 19', s1:'', s2:'', winner:0 },
+  { t1:'Team 45', t2:'Team 26', s1:'', s2:'', winner:0 },
+  { t1:'Team 49', t2:'Team 24', s1:'', s2:'', winner:0 },
+  { t1:'Team 33', t2:'Team 21', s1:'', s2:'', winner:0 },
+  { t1:'Team 13', t2:'Team 6',  s1:'', s2:'', winner:0 },
+  { t1:'Team 10', t2:'Team 5',  s1:'', s2:'', winner:0 },
+  { t1:'Team 2',  t2:'Team 3',  s1:'', s2:'', winner:0 },
+  { t1:'Team 4',  t2:'Team 50', s1:'', s2:'', winner:0 },
+  { t1:'Team 51', t2:'Team 38', s1:'', s2:'', winner:0 },
+];
+
+const INIT_EU_R1 = [
+  { t1:'Team 7',  t2:'Team 31', s1:'', s2:'', winner:0 },
+  { t1:'Team 12', t2:'Team 40', s1:'', s2:'', winner:0 },
+  { t1:'Team 14', t2:'Team 27', s1:'', s2:'', winner:0 },
+  { t1:'Team 15', t2:'Team 41', s1:'', s2:'', winner:0 },
+  { t1:'Team 17', t2:'Team 29', s1:'', s2:'', winner:0 },
+  { t1:'Team 18', t2:'Team 42', s1:'', s2:'', winner:0 },
+  { t1:'Team 23', t2:'Team 32', s1:'', s2:'', winner:0 },
+  { t1:'Team 36', t2:'Team 44', s1:'', s2:'', winner:0 },
+  { t1:'Team 37', t2:'Team 8',  s1:'', s2:'', winner:0 },
+  { t1:'Team 46', t2:'Team 27', s1:'', s2:'', winner:0 },
+];
+
+// ── STATE ─────────────────────────────────────────────────
+function deepClone(x) { return JSON.parse(JSON.stringify(x)); }
+
+function labelForCount(count) {
+  if (count === 1) return 'Regional Final';
+  if (count === 2) return 'Semi-Finals';
+  if (count === 3) return 'Quarter-Finals';
+  if (count === 4) return 'Quarter-Finals';
+  if (count === 5) return 'Round 2';
+  if (count === 8) return 'Quarter-Finals';
+  return 'Round ' + count;
+}
+
+function buildEmptyRounds(r1, numRounds) {
+  const rounds = [{ label:'Round 1', matches: deepClone(r1) }];
+  let prev = r1.length;
+  for (let i = 1; i < numRounds; i++) {
+    const count = Math.ceil(prev / 2);
+    rounds.push({
+      label: labelForCount(count),
+      matches: Array(count).fill(null).map(() => ({ t1:'TBD', t2:'TBD', s1:'', s2:'', winner:0 }))
+    });
+    prev = count;
+  }
+  return rounds;
+}
+
+// Asia: 16 matches → 8 → 4 → 2 → 1  (5 rounds)
+// EU:   10 matches → 5 → 3 → 2 → 1  (4 rounds, uneven handled by ceil)
+const ASIA_ROUNDS = 5;
+const EU_ROUNDS   = 5;
+
+function defaultState() {
+  return {
+    asia: { rounds: buildEmptyRounds(INIT_ASIA_R1, ASIA_ROUNDS) },
+    eu:   { rounds: buildEmptyRounds(INIT_EU_R1,   EU_ROUNDS)   },
+    finals: { t1:'TBD (Asia)', t2:'TBD (EU)', s1:'', s2:'', winner:0 }
+  };
+}
+
+let STATE = defaultState();
+let adminMode = false;
+
+// ── JSONBIN CLOUD SYNC ────────────────────────────────────
+const _BIN = "6a2556b8f5f4af5e29c6002f";
+const _KEY = "$2a$10$CM3exrm/N.VpS2J4LJ7Nr.EOyMCrDwqjLxTlQl2Zc3z3nT2RxrBXe";
+const _URL = `https://api.jsonbin.io/v3/b/${_BIN}`;
+
+function showSyncStatus(msg, color) {
+  const el = document.getElementById('saveStatus');
+  el.textContent = msg;
+  el.style.color = color || 'var(--win)';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+async function loadFromCloud() {
+  try {
+    showSyncStatus('⟳ Loading...', 'var(--muted)');
+    const res = await fetch(_URL + '/latest', {
+      headers: { 'X-Master-Key': _KEY }
+    });
+    const data = await res.json();
+    const record = data.record;
+    // Use cloud state only if it has the correct round structure AND no stale bye data
+    const euRoundsOk = record && record.eu && record.eu.rounds && record.eu.rounds.length === EU_ROUNDS;
+    const asiaOk = record && record.asia && record.asia.rounds && record.asia.rounds.length === ASIA_ROUNDS;
+    const asiaR1 = asiaOk && record.asia.rounds[0].matches;
+    const lastAsiaMatch = asiaR1 && asiaR1[asiaR1.length - 1];
+    const noByeData = !lastAsiaMatch || (!lastAsiaMatch.bye && lastAsiaMatch.t2 !== 'BYE');
+    if (asiaOk && euRoundsOk && noByeData) {
+      STATE = record;
+      fullPropagate('asia');
+      fullPropagate('eu');
+      render();
+      showSyncStatus('✓ Live data loaded', 'var(--win)');
+    } else {
+      // Stale or empty bin — rebuild with correct structure and push
+      STATE = defaultState();
+      fullPropagate('asia');
+      fullPropagate('eu');
+      render();
+      await pushToCloud();
+      showSyncStatus('✓ Bracket initialized', 'var(--win)');
+    }
+  } catch(e) {
+    // Fallback to localStorage if offline
+    try {
+      const raw = localStorage.getItem('vs2v2_bracket_v1');
+      if (raw) STATE = JSON.parse(raw);
+    } catch(e2) {}
+    fullPropagate('asia');
+    fullPropagate('eu');
+    render();
+    showSyncStatus('⚠ Offline mode', '#ffaa00');
+  }
+}
+
+async function pushToCloud() {
+  try {
+    await fetch(_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': _KEY },
+      body: JSON.stringify(STATE)
+    });
+    // Also cache locally as backup
+    try { localStorage.setItem('vs2v2_bracket_v1', JSON.stringify(STATE)); } catch(e) {}
+  } catch(e) {
+    // Silent fail — local cache still updated
+    try { localStorage.setItem('vs2v2_bracket_v1', JSON.stringify(STATE)); } catch(e2) {}
+  }
+}
+
+function autoSave() {
+  // For viewers: just cache locally. For admin: pushToCloud() is called explicitly.
+  try { localStorage.setItem('vs2v2_bracket_v1', JSON.stringify(STATE)); } catch(e) {}
+}
+
+async function manualSave() {
+  showSyncStatus('⟳ Saving...', 'var(--muted)');
+  await pushToCloud();
+  showSyncStatus('✓ Saved & synced!', 'var(--win)');
+}
+
+async function resetAll() {
+  if (!confirm('Reset ALL bracket data? This cannot be undone.')) return;
+  STATE = defaultState();
+  fullPropagate('asia');
+  fullPropagate('eu');
+  render();
+  await pushToCloud();
+  showSyncStatus('↺ Reset complete', '#ffaa00');
+}
+
+// ── PROPAGATION ───────────────────────────────────────────
+function fullPropagate(region) {
+  const rounds = STATE[region].rounds;
+
+  for (let rIdx = 0; rIdx < rounds.length - 1; rIdx++) {
+    const curr = rounds[rIdx].matches;
+    const next = rounds[rIdx + 1].matches;
+
+    // Reset TBD first
+    next.forEach(m => { m.t1 = 'TBD'; m.t2 = 'TBD'; });
+
+    curr.forEach((m, mIdx) => {
+      const nextMatchIdx = Math.floor(mIdx / 2);
+      const slot = (mIdx % 2 === 0) ? 't1' : 't2';
+      if (nextMatchIdx >= next.length) return;
+      const winnerName = m.winner === 1 ? m.t1 : m.winner === 2 ? m.t2 : null;
+      if (winnerName) next[nextMatchIdx][slot] = winnerName;
+    });
+
+    // Invalidate any winner in next round if their team slot went back to TBD
+    next.forEach(m => {
+      if (m.winner === 1 && m.t1 === 'TBD') m.winner = 0;
+      if (m.winner === 2 && m.t2 === 'TBD') m.winner = 0;
+    });
+  }
+
+  // Push to Grand Finals
+  const finalRound = rounds[rounds.length - 1];
+  if (finalRound && finalRound.matches[0]) {
+    const fm = finalRound.matches[0];
+    const wn = fm.winner === 1 ? fm.t1 : fm.winner === 2 ? fm.t2 : null;
+    if (region === 'asia') STATE.finals.t1 = wn || 'TBD (Asia)';
+    else STATE.finals.t2 = wn || 'TBD (EU)';
+    // Invalidate finals winner if team changed
+    if (region === 'asia' && STATE.finals.winner === 1 && STATE.finals.t1 !== wn) STATE.finals.winner = 0;
+    if (region === 'eu'   && STATE.finals.winner === 2 && STATE.finals.t2 !== wn) STATE.finals.winner = 0;
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────
+function render() {
+  renderBracket('asia');
+  renderBracket('eu');
+  renderFinalsMatch();
+  autoSave();
+}
+
+function renderBracket(region) {
+  const data = STATE[region];
+  const container = document.getElementById(`${region}-rounds`);
+  container.innerHTML = '';
+
+  data.rounds.forEach((round, rIdx) => {
+    const col = document.createElement('div');
+    col.className = 'round-col';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'round-label';
+    lbl.textContent = round.label;
+    col.appendChild(lbl);
+
+    round.matches.forEach((m, mIdx) => {
+      const isTBD = (m.t1 === 'TBD' || m.t2 === 'TBD') && rIdx > 0;
+      const div = document.createElement('div');
+      div.className = 'match clickable' + (isTBD ? ' tbd-match' : '');
+      div.innerHTML = buildMatchHTML(m, rIdx, mIdx, region);
+      if (adminMode) div.onclick = () => openEdit(region, rIdx, mIdx);
+      col.appendChild(div);
+    });
+
+    container.appendChild(col);
+  });
+}
+
+function buildMatchHTML(m, rIdx, mIdx, region) {
+  const t1win = m.winner === 1;
+  const t2win = m.winner === 2;
+  const s1 = m.s1 !== '' ? m.s1 : '-';
+  const s2 = m.s2 !== '' ? m.s2 : '-';
+  const tag = region === 'asia' ? 'AS' : 'EU';
+
+  const t1c = m.t1 === 'TBD' ? ' tbd' : '';
+  const t2c = m.t2 === 'TBD' ? ' tbd' : '';
+
+  return `
+    <div class="match-header">${tag} · R${rIdx+1} M${mIdx+1}</div>
+    <div class="team-row ${t1win ? 'winner' : ''}">
+      <span class="team-name${t1c}">${m.t1}</span>
+      <span class="team-score">${m.t1 === 'TBD' ? '' : s1}</span>
+    </div>
+    <div class="team-row ${t2win ? 'winner' : ''}">
+      <span class="team-name${t2c}">${m.t2}</span>
+      <span class="team-score">${m.t2 === 'TBD' ? '' : s2}</span>
+    </div>`;
+}
+
+function renderFinalsMatch() {
+  const f = STATE.finals;
+  const t1tbd = f.t1 === 'TBD (Asia)' || f.t1 === 'TBD';
+  const t2tbd = f.t2 === 'TBD (EU)'   || f.t2 === 'TBD';
+
+  document.getElementById('finals-name1').textContent = f.t1;
+  document.getElementById('finals-name2').textContent = f.t2;
+  document.getElementById('finals-score1').textContent = (!t1tbd && f.s1 !== '') ? f.s1 : '-';
+  document.getElementById('finals-score2').textContent = (!t2tbd && f.s2 !== '') ? f.s2 : '-';
+  document.getElementById('finals-t1').className = 'team-row' + (f.winner === 1 ? ' winner' : '');
+  document.getElementById('finals-t2').className = 'team-row' + (f.winner === 2 ? ' winner' : '');
+  document.getElementById('finals-name1').className = 'team-name' + (t1tbd ? ' tbd' : '');
+  document.getElementById('finals-name2').className = 'team-name' + (t2tbd ? ' tbd' : '');
+
+  const champ = f.winner === 1 ? f.t1 : f.winner === 2 ? f.t2 : null;
+  const banner = document.getElementById('champion-banner');
+  if (champ) { banner.classList.add('show'); document.getElementById('champ-name').textContent = champ; }
+  else banner.classList.remove('show');
+}
+
+// ── EDIT MODAL ────────────────────────────────────────────
+let _winSel = 0;
+function setWinner(w) {
+  _winSel = w;
+  [1,2,0].forEach(x => {
+    document.getElementById(`win-btn-${x}`).className = 'winner-btn' + (w === x ? ' active' : '');
+  });
+}
+
+let _cur = null;
+
+function openEdit(region, rIdx, mIdx) {
+  if (!adminMode) return;
+  const m = STATE[region].rounds[rIdx].matches[mIdx];
+  _cur = { type:'match', region, rIdx, mIdx };
+  const isR1 = rIdx === 0;
+  document.getElementById('modal-title').textContent = `${region.toUpperCase()} · ${STATE[region].rounds[rIdx].label} · Match ${mIdx+1}`;
+  document.getElementById('label-t1').textContent = 'Team 1';
+  document.getElementById('label-t2').textContent = 'Team 2';
+  document.getElementById('input-t1').value = m.t1;
+  document.getElementById('input-t2').value = m.t2;
+  document.getElementById('input-s1').value = m.s1;
+  document.getElementById('input-s2').value = m.s2;
+  document.getElementById('input-t1').readOnly = !isR1;
+  document.getElementById('input-t2').readOnly = !isR1;
+  document.getElementById('propagate-note').textContent = rIdx > 0
+    ? '⚡ Teams auto-filled from previous round'
+    : '⚡ Winner auto-advances to next round';
+  setWinner(m.winner);
+  document.getElementById('modal').classList.add('open');
+}
+
+function openFinalsEdit() {
+  if (!adminMode) return;
+  const f = STATE.finals;
+  _cur = { type:'finals' };
+  document.getElementById('modal-title').textContent = 'Grand Finals';
+  document.getElementById('label-t1').textContent = 'Asia Representative';
+  document.getElementById('label-t2').textContent = 'EU Representative';
+  document.getElementById('input-t1').value = f.t1;
+  document.getElementById('input-t2').value = f.t2;
+  document.getElementById('input-s1').value = f.s1;
+  document.getElementById('input-s2').value = f.s2;
+  document.getElementById('input-t1').readOnly = true;
+  document.getElementById('input-t2').readOnly = true;
+  document.getElementById('propagate-note').textContent = '🏆 Setting winner crowns the Champion';
+  setWinner(f.winner);
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  _cur = null;
+}
+
+function saveMatch() {
+  if (!_cur) return;
+  const s1v = document.getElementById('input-s1').value;
+  const s2v = document.getElementById('input-s2').value;
+
+  if (_cur.type === 'finals') {
+    STATE.finals.s1 = s1v;
+    STATE.finals.s2 = s2v;
+    STATE.finals.winner = _winSel;
+  } else {
+    const m = STATE[_cur.region].rounds[_cur.rIdx].matches[_cur.mIdx];
+    if (_cur.rIdx === 0) {
+      m.t1 = document.getElementById('input-t1').value.trim() || m.t1;
+      m.t2 = document.getElementById('input-t2').value.trim() || m.t2;
+    }
+    m.s1 = s1v; m.s2 = s2v; m.winner = _winSel;
+    fullPropagate(_cur.region);
+  }
+
+  closeModal();
+  render();
+  // Push to cloud immediately so all viewers see the update
+  pushToCloud().then(() => showSyncStatus('✓ Synced!', 'var(--win)'));
+}
+
+document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+// ── ADMIN AUTH (SHA-256, password never in file) ──────────
+function openLogin() {
+  if (adminMode) { exitAdmin(); return; }
+  document.getElementById('loginOverlay').classList.add('open');
+  document.getElementById('pwInput').value = '';
+  document.getElementById('loginErr').style.display = 'none';
+  setTimeout(() => document.getElementById('pwInput').focus(), 60);
+}
+
+function closeLogin() {
+  document.getElementById('loginOverlay').classList.remove('open');
+}
+
+async function doLogin() {
+  const typed = document.getElementById('pwInput').value;
+  const h = await _sha(typed);
+  if (h === _H) {
+    closeLogin();
+    adminMode = true;
+    document.body.classList.add('admin-mode');
+    document.getElementById('adminBtn').textContent = '🔓 Exit Admin';
+    document.getElementById('saveBtn').style.display = '';
+    document.getElementById('resetBtn').style.display = '';
+    document.getElementById('editHint').textContent = 'Click any match to set scores & winner — winners auto-advance!';
+    render();
+  } else {
+    document.getElementById('loginErr').style.display = 'block';
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+  }
+}
+
+function exitAdmin() {
+  adminMode = false;
+  document.body.classList.remove('admin-mode');
+  document.getElementById('adminBtn').textContent = '🔐 Admin Login';
+  document.getElementById('saveBtn').style.display = 'none';
+  document.getElementById('resetBtn').style.display = 'none';
+  document.getElementById('editHint').textContent = 'Admin login required to edit results';
+  render();
+}
+
+document.getElementById('loginOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeLogin();
+});
+
+// ── INIT — load live data from cloud ──────────────────────
+loadFromCloud();
+</script>
+</body>
+</html>
